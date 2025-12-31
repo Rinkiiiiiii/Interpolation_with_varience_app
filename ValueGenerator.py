@@ -2,8 +2,8 @@ import random
 import matplotlib.pyplot as plt
 
 #def interpolate_with_variation(start, end, steps, weight=0.7, max_variation_factor=1.5, smoothness=1):
-def interpolate_with_variation(start, end, steps, weight=0.7, max_variation_factor=1.0,
-                               smoothness=3, spike_prob=0.06, spike_magnitude=2.0):
+def interpolate_with_variation(start, end, steps, weight=0.7, max_variation_factor=1.5,
+                               smoothness=1, spike_prob=0.6, spike_magnitude=2.0):
     """
     Interpolate from start to end over `steps` points (inclusive) and add smooth,
     zero-mean variation so the final value is exactly `end`.

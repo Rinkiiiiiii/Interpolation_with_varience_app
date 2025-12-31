@@ -1,0 +1,8 @@
+Progress Report (12/30/2025):
+- Made Main Functionality (ValueGenerator.py).
+- Made Rudementary front End UI (App.py).
+
+Next Steps:
+- Work on more varied value generation.
+- Work on live graph editing.
+- Fix duplicating "copy to clipboard" button.

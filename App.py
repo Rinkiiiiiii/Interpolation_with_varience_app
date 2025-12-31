@@ -4,32 +4,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import numpy as np
 import importlib
+import ValueGenerator
 
 # app.py
-# Simple desktop app to input target values (start/end + optional mid points),
-# submit to a backend (dummy fallback) and display an interpolated graph.
-
-# Try to import real backend.py; if missing, use an internal dummy implementation.
-try:
-    backend = importlib.import_module("backend")
-    print("Imported backend.py successfully.")
-    has_backend = True
-except Exception:
-    has_backend = False
-
-    class backend:
-        @staticmethod
-        def process(values):
-            # Dummy: interpolate values and add light random variance
-            n = len(values)
-            x_out = np.linspace(0, n - 1, 200)
-            y_base = np.interp(x_out, np.arange(n), np.array(values))
-            # variance proportional to range
-            rng = max(1.0, (max(values) - min(values))) if n > 1 else 1.0
-            noise = np.random.normal(scale=0.05 * rng, size=x_out.shape)
-            y_out = y_base + noise
-            return x_out, y_out
-
 
 class InterpolationApp:
     def __init__(self, root):
@@ -37,6 +14,7 @@ class InterpolationApp:
         self.root.title("Interpolation with Variance")
         self.entries = []  # list of (label_widget, entry_widget)
         self.current_values = []  # list of numeric values from backend
+        self.current_bounds = []  # list of bounds for editing
         self.selected_point = None  # index of selected point for editing
         self._build_ui()
         self._init_plot()
@@ -52,6 +30,9 @@ class InterpolationApp:
         # Start and End fields
         self._add_entry("Start")
         self._add_entry("End")
+
+        # Add a Steps field
+        self._add_entry("Steps")
 
         # Controls
         controls = ttk.Frame(frm)
@@ -95,9 +76,11 @@ class InterpolationApp:
 
         # Pre-fill placeholder for convenience
         if label_text == "Start":
-            entry.insert(0, "0")
+            entry.insert(0, "30")
         elif label_text == "End" and entry.get() == "":
-            entry.insert(0, "1")
+            entry.insert(0, "60")
+        elif label_text == "Steps" and entry.get() == "":
+            entry.insert(0, "24")
 
     def add_field(self):
         # New field goes between start and end (i.e., before last)
@@ -142,10 +125,10 @@ class InterpolationApp:
         
         # Only select if click is close enough
         if distances[nearest_idx] < 0.3:
-            self.edit_point(nearest_idx)
+            self.edit_bounds(nearest_idx)
 
-    def edit_point(self, idx):
-        """Open dialog to edit a specific point"""
+    def edit_bounds(self, idx):
+        """Open dialog to edit a specific bound"""
         dialog = tk.Toplevel(self.root)
         dialog.title(f"Edit Point {idx}")
         dialog.geometry("300x150")
@@ -159,7 +142,7 @@ class InterpolationApp:
         
         def save():
             try:
-                new_val = float(entry.get().strip())
+                new_val = int(entry.get().strip())
                 self.current_values[idx] = new_val
                 # Update the input field
                 if idx < len(self.entries):
@@ -180,7 +163,7 @@ class InterpolationApp:
                 txt = ent.get().strip()
                 if txt == "":
                     raise ValueError("All fields must be filled.")
-                val = float(txt)
+                val = int(txt)
                 values.append(val)
         except ValueError as e:
             messagebox.showerror("Invalid input", f"Please enter numeric values in all fields.\n{e}")
@@ -190,26 +173,39 @@ class InterpolationApp:
             messagebox.showerror("Not enough points", "Please provide at least start and end values.")
             return
 
-        self.current_values = values
-
-        # Call backend (real or dummy)
+        # Call Value Generator
         try:
-            x_out, y_out = backend.process(values)
-            print(f"Backend returned {len(x_out)} points.")
+            new_values = ValueGenerator.interpolate_with_variation(*values)
         except Exception as e:
             messagebox.showerror("Backend error", f"Backend processing failed: {e}")
             return
+        
+        self.current_bounds = values
+        self.current_values = new_values
 
         # Plot results
         self._clear_plot()
+
+        x_out = np.arange(len(new_values))
+        y_out = new_values
         self.ax.plot(x_out, y_out, label="Interpolated (backend)")
+        self.ax.scatter(x_out, y_out, color="red", zorder=5, label="Interpolated points")
         # overlay original points
         x_pts = np.arange(len(values))
-        self.ax.scatter(x_pts, values, color="red", zorder=5, label="Targets (click to edit)")
+        self.ax.scatter(x_pts, values, color="orange", zorder=5, label="Targets (click to edit)")
         self.ax.legend()
         self.ax.relim()
         self.ax.autoscale_view()
         self.canvas.draw()
+
+        # Add button for saving new_values to clipboard
+        def copy_to_clipboard():
+            self.root.clipboard_clear()
+            self.root.clipboard_append(", ".join(map(str, new_values)))
+            messagebox.showinfo("Copied", "Interpolated values copied to clipboard.")
+        copy_btn = ttk.Button(self.root, text="Copy Interpolated Values to Clipboard", command=copy_to_clipboard)
+        copy_btn.pack(side="bottom", pady=4)
+
 
     def clear_all(self):
         # remove all entries and recreate start/end
@@ -218,8 +214,10 @@ class InterpolationApp:
             ent.destroy()
         self.entries = []
         self.current_values = []
+        self.current_bounds = []
         self._add_entry("Start")
         self._add_entry("End")
+        self._add_entry("Steps")
         self._clear_plot()
 
 
@@ -227,11 +225,6 @@ def main():
     root = tk.Tk()
     InterpolationApp(root)
     root.geometry("700x500")
-    # Inform whether a real backend.py was loaded
-    if has_backend:
-        print("Using backend.py")
-    else:
-        print("No backend.py found — using internal dummy backend.")
     root.mainloop()
 
 
