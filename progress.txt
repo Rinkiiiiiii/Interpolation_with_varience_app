@@ -16,6 +16,8 @@ Progress Report (1/8/2026):
 - Removed live bound editing functionality, bound editing is now specific to submitting a new graph the same way you would submit the first graph.
 
 Next Steps:
+- Work on more varied value generation.
+- Add title functionality to graphing (both normal and new_graph functionalities)
 - Create desktop app.
 - Share desktop app with customers.
 - Request Feedback on app.
