@@ -6,3 +6,16 @@ Next Steps:
 - Work on more varied value generation.
 - Work on live graph editing.
 - Fix duplicating "copy to clipboard" button.
+
+
+
+Progress Report (1/8/2026):
+- Fixed all issues with live graph editing
+- Fixed duplicating "copy to clipboard" button
+- Added new "new_graph" functionality
+- Removed live bound editing functionality, bound editing is now specific to submitting a new graph the same way you would submit the first graph.
+
+Next Steps:
+- Create desktop app.
+- Share desktop app with customers.
+- Request Feedback on app.
