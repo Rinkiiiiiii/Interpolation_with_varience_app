@@ -50,6 +50,9 @@ class InterpolationApp:
         new_graph_btn = ttk.Button(controls, text="New Graph", command=self.new_graph)
         new_graph_btn.pack(side="left", padx=(8, 0))
 
+        save_btn = ttk.Button(controls, text="Save Graph", command=self.save_graph)
+        save_btn.pack(side="left", padx=(8, 0))
+
         # Info label for editing
         self.info_label = ttk.Label(controls, text="Click points on graph to edit", foreground="gray")
         self.info_label.pack(side="left", padx=(20, 0))
@@ -298,6 +301,76 @@ class InterpolationApp:
             return
 
         self.plot_results(values, [])
+
+    def save_graph(self):
+        """Save the current graph to a file with a user-provided title"""
+        if not self.current_values:
+            messagebox.showinfo("No graph", "There is no graph to save. Please submit first.")
+            return
+        
+        # Create dialog to get title and filename
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Save Graph")
+        dialog.geometry("400x200")
+        
+        ttk.Label(dialog, text="Enter graph title:").pack(pady=10)
+        title_entry = ttk.Entry(dialog, width=40)
+        title_entry.pack(pady=5, padx=10)
+        title_entry.focus()
+        
+        ttk.Label(dialog, text="Enter filename (without extension):").pack(pady=10)
+        filename_entry = ttk.Entry(dialog, width=40)
+        filename_entry.pack(pady=5, padx=10)
+        
+        def save():
+            title = title_entry.get().strip()
+            filename = filename_entry.get().strip()
+            
+            if not filename:
+                messagebox.showerror("Invalid input", "Please enter a filename.")
+                return
+            
+            try:
+                # Create a new figure with the title
+                fig = Figure(figsize=(10, 6), dpi=100)
+                ax = fig.add_subplot(111)
+                
+                x_out = np.arange(len(self.current_values))
+                y_out = self.current_values
+                ax.plot(x_out, y_out, label="Interpolated (backend)")
+                ax.scatter(x_out, y_out, color="red", zorder=5, label="Interpolated points")
+                
+                # Plot bounds
+                start_bound = [0, len(self.current_values) - 1]
+                end_bound = [self.current_bounds[0], self.current_bounds[1]]
+                ax.scatter(start_bound, end_bound, color="blue", s=100, zorder=6, label="Bounds")
+                
+                if title:
+                    ax.set_title(title, fontsize=14, fontweight="bold")
+                ax.set_xlabel("X")
+                ax.set_ylabel("Value")
+                ax.legend()
+                
+                # Save the figure
+                fig.tight_layout()
+                fig.savefig(f"{filename}.png", dpi=150, bbox_inches="tight")
+                
+                # Save values to text file
+                with open(f"{filename}.txt", "w") as f:
+                    f.write(f"Graph: {title if title else 'Untitled'}\n")
+                    f.write(f"Start: {self.current_bounds[0]}\n")
+                    f.write(f"End: {self.current_bounds[1]}\n")
+                    f.write(f"Steps: {self.current_bounds[2]}\n")
+                    f.write("\nInterpolated Values:\n")
+                    for i, val in enumerate(self.current_values):
+                        f.write(f"{i}: {val}\n")
+                
+                messagebox.showinfo("Success", f"Graph saved as {filename}.png\nValues saved as {filename}.txt")
+                dialog.destroy()
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save graph: {e}")
+        
+        ttk.Button(dialog, text="Save", command=save).pack(pady=20)
 
     def submit_edit(self):
         # This can be used to re-submit after editing a point
