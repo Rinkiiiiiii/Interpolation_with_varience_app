@@ -21,3 +21,24 @@ Next Steps:
 - Create desktop app.
 - Share desktop app with customers.
 - Request Feedback on app.
+
+
+
+Progress Report (1/13/2026):
+- Created EXE and Installer for Interpolation App.
+
+Next Steps:
+- Add title functionality to graphing (both normal and new_graph functionalities).
+- Request Feedback on app.
+- Remake save graph functionality to save an excel sheet through file explorer instead. 
+
+
+
+Progress Report (1/16/2026):
+- Added title functionality to graphing (both normal and new_graph functionalities).
+- Remade save graph functionality to save an excel sheet through file explorer instead. 
+- Made QOL changes to the app throughout.
+- Updated EXE and Installer for Interpolation App.
+
+Next Steps:
+- Request Feedback on app.
