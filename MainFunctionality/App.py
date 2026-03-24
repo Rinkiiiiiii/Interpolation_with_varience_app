@@ -1,7 +1,9 @@
 import tkinter as tk
+import sys
 from tkinter import ttk, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 import numpy as np
 import importlib
 import ValueGenerator
@@ -22,6 +24,8 @@ class InterpolationApp:
         self.current_bounds = []  # list of bounds for editing
         self.graph_title = tk.StringVar()  # graph title
         self.selected_point = None  # index of selected point for editing
+        self.child_windows = []
+        self.root.protocol("WM_DELETE_WINDOW", self.on_app_close)
 
         # State for the main graph window
         self.main_graph_state = {
@@ -149,6 +153,8 @@ class InterpolationApp:
         self.copy_to_clipboard()
 
         new_window = tk.Toplevel(self.root)
+        self.child_windows.append(new_window) # Clean close
+        new_window.protocol("WM_DELETE_WINDOW", lambda w=new_window: self.close_child_window(w)) # Clean close
         new_window.title("Multi-Plot Viewer")
         new_window.geometry("700x700")
 
@@ -270,33 +276,33 @@ class InterpolationApp:
         dialog = tk.Toplevel(graph_state["parent"])
         dialog.title(f"Edit Value {idx + 1}")
         dialog.geometry("300x150")
-    
+
         label = ttk.Label(dialog, text=f"Edit value for point {idx + 1}:")
         label.pack(pady=10)
         label.configure(font=("Arial", 12, "bold"))
-    
+
         entry = ttk.Entry(dialog, width=15)
         entry.pack(pady=5)
         entry.insert(0, str(graph_state["plot_points"][idx]))
         entry.focus()
-    
+
         def save():
             try:
                 new_val = int(entry.get().strip())
                 graph_state["plot_points"][idx] = new_val
                 dialog.destroy()
-    
+
                 # Keep main graph data in sync if editing the main graph
                 if graph_state is self.main_graph_state:
                     self.current_values = graph_state["plot_points"]
                     self.current_bounds = graph_state["bounds"]
-    
+
                 # Keep the New Graph text box synced with edited values
                 if "text_widget" in graph_state and graph_state["text_widget"] is not None:
                     text_widget = graph_state["text_widget"]
                     text_widget.delete("1.0", tk.END)
                     text_widget.insert("1.0", "\n".join(str(v) for v in graph_state["plot_points"]))
-    
+
                 self.render_plot(
                     graph_state["ax"],
                     graph_state["canvas"],
@@ -306,7 +312,7 @@ class InterpolationApp:
                 )
             except ValueError:
                 messagebox.showerror("Invalid input", "Please enter a numeric value.")
-    
+
         ttk.Button(dialog, text="Save", command=save).pack(pady=5)
 
     def submit(self):
@@ -469,7 +475,6 @@ class InterpolationApp:
             self.main_graph_state["title"]
         )
 
-
     def clear_all(self):
         # remove all entries and recreate start/end
         for lbl, ent in self.entries:
@@ -485,6 +490,46 @@ class InterpolationApp:
         self.graph_title = tk.StringVar()
         self._clear_plot()
 
+    def close_child_window(self, window):
+        try:
+            if window in self.child_windows:
+                self.child_windows.remove(window)
+        except Exception:
+            pass
+
+        try:
+            window.destroy()
+        except Exception:
+            pass 
+
+    def on_app_close(self):
+        """Cleanly close all app windows and terminate the process."""
+        try:
+            for window in self.child_windows[:]:
+                try:
+                    window.destroy()
+                except Exception:
+                    pass
+            self.child_windows.clear()
+        except Exception:
+            pass
+
+        try:
+            plt.close("all")
+        except Exception:
+            pass
+
+        try:
+            self.root.quit()
+        except Exception:
+            pass
+
+        try:
+            self.root.destroy()
+        except Exception:
+            pass
+
+        sys.exit(0)
 
 def main():
     root = tk.Tk()
