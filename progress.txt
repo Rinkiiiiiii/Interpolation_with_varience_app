@@ -41,4 +41,19 @@ Progress Report (1/16/2026):
 - Updated EXE and Installer for Interpolation App.
 
 Next Steps:
-- Request Feedback on app.
+- Request Feedback on app:
+
+Feedback Received and User Stories (3/23/2026):
+- Make tutorial video for application.
+- Make app more readable.
+- Make copied values have correct format for pasting onto excel file:
+- Fix "copy values" button (currently non-functioning, explore more).
+- Make Title adjustable from the "new graph" window.
+- Make "close app" work properly so that pc doesn't find it to be "working in the background" when closed/updating.
++++ Add the change value on click functionality to the "new graph" window.
+- Edit the random values generator so that it never goes above or below the specified bounds.
+- Make it so app isnt perceived as a virus by windows when downloading
+- Make it so the "start, end, steps" fields can be duplicated though as to allow for multiple graphs to be attached to eachother in one request
+
+NOTES: if i am able to give the "new graph" window the ability to use the "plot_results" function then it would have the same properties as it, meaning it can use the "on_click" functionality.
+Need this because currently the "New_graph" window prints the values and doesnt interact with them like plot results does. look into more

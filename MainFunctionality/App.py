@@ -22,6 +22,17 @@ class InterpolationApp:
         self.current_bounds = []  # list of bounds for editing
         self.graph_title = tk.StringVar()  # graph title
         self.selected_point = None  # index of selected point for editing
+
+        # State for the main graph window
+        self.main_graph_state = {
+            "parent": self.root,
+            "ax": None,
+            "canvas": None,
+            "bounds": [],
+            "plot_points": [],
+            "title": ""
+        }
+
         self._build_ui()
         self._init_plot()
 
@@ -105,9 +116,16 @@ class InterpolationApp:
         self.canvas = FigureCanvasTkAgg(self.fig, master=canvas_frame)
         self.canvas_widget = self.canvas.get_tk_widget()
         self.canvas_widget.pack(fill="both", expand=True)
-        
+
+        # Store references in main graph state
+        self.main_graph_state["ax"] = self.ax
+        self.main_graph_state["canvas"] = self.canvas
+
         # Connect click event for point editing
-        self.canvas.mpl_connect("button_press_event", self.on_plot_click)
+        self.canvas.mpl_connect(
+            "button_press_event",
+            lambda event: self.on_plot_click(event, self.main_graph_state)
+        )
 
     def _clear_plot(self):
         self.ax.cla()
@@ -127,131 +145,168 @@ class InterpolationApp:
         # messagebox.showinfo("Copied", "Interpolated values copied to clipboard.")
 
     def new_graph(self):
-
+        """Open a new window to plot and edit a separate graph."""
         self.copy_to_clipboard()
 
-        """Open a new window to plot multiple data series"""
         new_window = tk.Toplevel(self.root)
         new_window.title("Multi-Plot Viewer")
         new_window.geometry("700x700")
-        
+
         # Frame for controls
         control_frame = ttk.Frame(new_window, padding=8)
         control_frame.pack(side="top", fill="x")
-        
+
         ttk.Label(control_frame, text="Paste clipboard data (one series per line):").pack(anchor="w", pady=(0, 5))
-        
+
         # Text widget for input
         text_widget = tk.Text(control_frame, height=6, width=50)
         text_widget.pack(fill="both", expand=False, pady=(0, 8))
-        
+
         # Try to load from clipboard
         try:
             clipboard_data = new_window.clipboard_get()
             text_widget.insert("1.0", clipboard_data)
-        except:
+        except Exception:
             pass
-        
-        # Figure and canvas
+
+        # Figure and canvas for this new window
         fig = Figure(figsize=(6, 4), dpi=100)
         ax = fig.add_subplot(111)
-        
+
         canvas_frame = ttk.LabelFrame(new_window, text="Plot", padding=6)
         canvas_frame.pack(fill="both", expand=True, padx=8, pady=8)
-        
+
         canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
         canvas_widget = canvas.get_tk_widget()
         canvas_widget.pack(fill="both", expand=True)
-        
 
-        # i could clean this up but it works for now, so leaving it like that lol
+        # This graph window's independent state
+        graph_state = {
+            "parent": new_window,
+            "ax": ax,
+            "canvas": canvas,
+            "bounds": [],
+            "plot_points": [],
+            "title": self.graph_title.get() or "Multi-Series Plot",
+            "text_widget": text_widget
+        }
+
         def plot_data():
-            ax.cla()
             text = text_widget.get("1.0", tk.END).strip()
             if not text:
                 messagebox.showwarning("No data", "Please paste data to plot.")
                 return
-            
-            series_list = text.split("\n")
-            x_offset = 0
-            all_x = []
-            all_y = []
-            for series_idx, series_text in enumerate(series_list):
-                if series_text.strip():
-                    try:
-                        values = [int(x.strip()) for x in series_text.split() if x.strip()]
-                        if values:
-                            x_positions = np.arange(x_offset, x_offset + len(values))
-                            ax.scatter(x_positions, values, marker="o", color="red", zorder=5)
-                            all_x.extend(x_positions)
-                            all_y.extend(values)
-                            x_offset += len(values)
-                    except ValueError:
-                        messagebox.showerror("Invalid format", f"Could not parse: {series_text}")
-                        return
-            
-            # Plot line connecting all points
-            if all_x and all_y:
-                ax.plot(all_x, all_y, color="blue", linewidth=1.5, zorder=1, label="Interpolated (backend)")
-            
-            ax.set_xlabel("Index")
-            ax.set_ylabel("Value")
-            ax.legend()
-            ax.relim()
-            ax.set_title(self.graph_title.get() or "Multi-Series Plot")
-            ax.autoscale_view()
-            canvas.draw()
-        
-        current_values = self.current_values
-        current_bounds = self.current_bounds
-        graph_title = self.graph_title
+
+            try:
+                values = []
+                for line in text.split("\n"):
+                    if line.strip():
+                        values.extend([int(x.strip()) for x in line.split() if x.strip()])
+            except ValueError:
+                messagebox.showerror("Invalid format", "Could not parse input.")
+                return
+
+            if not values:
+                messagebox.showwarning("No data", "No numeric values were found to plot.")
+                return
+
+            bounds = [values[0], values[-1], len(values)]
+
+            graph_state["bounds"] = bounds[:]
+            graph_state["plot_points"] = values[:]
+            graph_state["title"] = self.graph_title.get() or "Multi-Series Plot"
+
+            self.render_plot(
+                graph_state["ax"],
+                graph_state["canvas"],
+                graph_state["bounds"],
+                graph_state["plot_points"],
+                graph_state["title"]
+            )
+
+        # Bind clicks to THIS canvas, for THIS graph only
+        canvas.mpl_connect(
+            "button_press_event",
+            lambda event, state=graph_state: self.on_plot_click(event, state)
+        )
 
         ttk.Button(control_frame, text="Plot Data", command=plot_data).pack(side="left", padx=(0, 5))
         ttk.Button(control_frame, text="Copy Values", command=self.copy_to_clipboard).pack(side="left", padx=(0, 5))
-        ttk.Button(control_frame, text="Save Graph", command=lambda: self.save_graph(current_values, current_bounds, graph_title)).pack(side="left", padx=(0, 5))
+        ttk.Button(
+            control_frame,
+            text="Save Graph",
+            command=lambda: self.save_graph(
+                graph_state["plot_points"],
+                graph_state["bounds"],
+                tk.StringVar(value=graph_state["title"])
+            )
+        ).pack(side="left", padx=(0, 5))
+
         plot_data()  # auto-plot on open if clipboard data is available
 
-    def on_plot_click(self, event):
-        """Handle clicks on plot points for editing"""
-        if event.inaxes != self.ax or not self.current_values:
-            return
-        
-        clicked_x, clicked_y = event.xdata, event.ydata
-        
-        # Check if clicked on interpolated values (red scatter points)
-        x_interp = np.arange(len(self.current_values))
-        distances_interp = np.sqrt((x_interp - clicked_x) ** 2 + 
-                                   (np.array(self.current_values) - clicked_y) ** 2)
-        nearest_interp_idx = np.argmin(distances_interp)
-        
-        if distances_interp[nearest_interp_idx] < 1:
-            self.edit_values(nearest_interp_idx)
+    def on_plot_click(self, event, graph_state):
+        """Handle clicks on plot points for editing."""
+        ax = graph_state["ax"]
+        plot_points = graph_state["plot_points"]
 
-    def edit_values(self, idx):
-        """Open dialog to edit a specific value"""
-        dialog = tk.Toplevel(self.root)
-        dialog.title(f"Edit Value {idx+1}")
+        if event.inaxes != ax or not plot_points or event.xdata is None or event.ydata is None:
+            return
+
+        clicked_x, clicked_y = event.xdata, event.ydata
+
+        x_interp = np.arange(len(plot_points))
+        y_interp = np.array(plot_points)
+
+        distances = np.sqrt((x_interp - clicked_x) ** 2 +
+                            (y_interp - clicked_y) ** 2)
+
+        idx = np.argmin(distances)
+
+        if distances[idx] < 1:
+            self.edit_value(idx, graph_state)
+
+    def edit_value(self, idx, graph_state):
+        """Open dialog to edit a specific value."""
+        dialog = tk.Toplevel(graph_state["parent"])
+        dialog.title(f"Edit Value {idx + 1}")
         dialog.geometry("300x150")
-        
-        label = ttk.Label(dialog, text=f"Edit value for point {idx+1}:")
+    
+        label = ttk.Label(dialog, text=f"Edit value for point {idx + 1}:")
         label.pack(pady=10)
-        # Configure font to be larger and bold
         label.configure(font=("Arial", 12, "bold"))
-        
+    
         entry = ttk.Entry(dialog, width=15)
         entry.pack(pady=5)
-        entry.insert(0, str(self.current_values[idx]))
+        entry.insert(0, str(graph_state["plot_points"][idx]))
         entry.focus()
-        
+    
         def save():
             try:
                 new_val = int(entry.get().strip())
-                self.current_values[idx] = new_val
+                graph_state["plot_points"][idx] = new_val
                 dialog.destroy()
-                self.submit_edit()  # plot with updated values
+    
+                # Keep main graph data in sync if editing the main graph
+                if graph_state is self.main_graph_state:
+                    self.current_values = graph_state["plot_points"]
+                    self.current_bounds = graph_state["bounds"]
+    
+                # Keep the New Graph text box synced with edited values
+                if "text_widget" in graph_state and graph_state["text_widget"] is not None:
+                    text_widget = graph_state["text_widget"]
+                    text_widget.delete("1.0", tk.END)
+                    text_widget.insert("1.0", "\n".join(str(v) for v in graph_state["plot_points"]))
+    
+                self.render_plot(
+                    graph_state["ax"],
+                    graph_state["canvas"],
+                    graph_state["bounds"],
+                    graph_state["plot_points"],
+                    graph_state["title"]
+                )
             except ValueError:
                 messagebox.showerror("Invalid input", "Please enter a numeric value.")
-        
+    
         ttk.Button(dialog, text="Save", command=save).pack(pady=5)
 
     def submit(self):
@@ -354,46 +409,65 @@ class InterpolationApp:
             messagebox.showerror("Error", f"Failed to save to Excel: {e}")
 
     def submit_edit(self):
-        # This can be used to re-submit after editing a point
-        self.plot_results(self.current_bounds, self.current_values)
+        # Re-render the main graph after editing
+        if self.current_bounds and self.current_values:
+            self.plot_results(self.current_bounds, self.current_values)
 
+    def render_plot(self, ax, canvas, bounds, plot_points, title):
+        ax.cla()
 
-    def plot_results(self, values, new_values):
+        x_out = np.arange(len(plot_points))
+        y_out = plot_points
 
+        ax.plot(x_out, y_out, label="Interpolated (backend)")
+        ax.scatter(x_out, y_out, color="red", zorder=5, label="Interpolated points")
+
+        start_bound = [0, len(plot_points) - 1]
+        end_bound = [bounds[0], bounds[1]]
+        ax.scatter(start_bound, end_bound, color="blue", s=100, zorder=6, label="Bounds (click to edit)")
+
+        ax.set_xlabel("X")
+        ax.set_ylabel("Value")
+        ax.set_title(title or "Value Interpolation Graph")
+
+        ax.legend()
+        ax.relim()
+        ax.autoscale_view()
+
+        canvas.draw()
+
+    def plot_results(self, bounds, plot_points):
         # Call Value Generator
-        if len(values) == 3 and new_values == []:
+        if len(bounds) == 3 and plot_points == []:
             try:
-                new_values = ValueGenerator.interpolate_with_variation(*values)
+                plot_points = ValueGenerator.interpolate_with_variation(*bounds)
             except Exception as e:
                 messagebox.showerror("Backend error", f"Backend processing failed: {e}")
                 return
-        elif len(values) < 3:
+        elif len(bounds) < 3:
             messagebox.showerror("Not enough points", "Please provide at least start, end, and steps values.")
             return
 
-        self.current_bounds = values
-        self.current_values = new_values
+        self.current_bounds = bounds[:]
+        self.current_values = plot_points[:]
         self.graph_title = tk.StringVar(value=self.graph_title.get())
 
-        # Plot results
-        self._clear_plot()
+        # Update main graph state
+        self.main_graph_state["parent"] = self.root
+        self.main_graph_state["ax"] = self.ax
+        self.main_graph_state["canvas"] = self.canvas
+        self.main_graph_state["bounds"] = self.current_bounds
+        self.main_graph_state["plot_points"] = self.current_values
+        self.main_graph_state["title"] = self.graph_title.get() or "Value Interpolation Graph"
 
-        x_out = np.arange(len(new_values))
-        y_out = new_values
-        self.ax.plot(x_out, y_out, label="Interpolated (backend)")
-        self.ax.scatter(x_out, y_out, color="red", zorder=5, label="Interpolated points")
-        
-        # Plot bounds (start and end) at first and last positions
-        # This currently plots them at the same x positions as the interpolated points, but could be adjusted to always be at x=0 and x=steps-1 if desired.
-        start_bound = [0, len(new_values) - 1]
-        end_bound = [values[0], values[1]]
-        self.ax.scatter(start_bound, end_bound, color="blue", s=100, zorder=6, label="Bounds (click to edit)")
-        
-        self.ax.legend()
-        self.ax.relim()
-        self.ax.autoscale_view()
-        self.ax.set_title(self.graph_title.get() or "Value Interpolation Graph")
-        self.canvas.draw()
+        # Draw using shared renderer
+        self.render_plot(
+            self.ax,
+            self.canvas,
+            self.current_bounds,
+            self.current_values,
+            self.main_graph_state["title"]
+        )
 
 
     def clear_all(self):
