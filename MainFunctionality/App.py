@@ -10,14 +10,13 @@ import ValueGenerator
 from tkinter.filedialog import asksaveasfilename
 import openpyxl
 from openpyxl.drawing.image import Image as XLImage
-from openpyxl.chart import LineChart, Reference
 import os
 
 # app.py
 
 class InterpolationApp:
     def __init__(self, root):
-        self.root = root
+        self.root = root 
         self.root.title("Interpolation with Variance")
         self.entries = []  # list of (label_widget, entry_widget)
         self.current_values = []  # list of numeric values from backend
@@ -64,7 +63,7 @@ class InterpolationApp:
         clear_btn = ttk.Button(controls, text="Clear", command=self.clear_all)
         clear_btn.pack(side="left", padx=(8, 0))
 
-        copy_btn = ttk.Button(controls, text="Copy Values", command=self.copy_to_clipboard)
+        copy_btn = ttk.Button(controls, text="Copy Values", command=lambda: self.copy_to_clipboard(self.main_graph_state))
         copy_btn.pack(side="left", padx=(8, 0))
 
         new_graph_btn = ttk.Button(controls, text="New Graph", command=self.new_graph)
@@ -137,11 +136,11 @@ class InterpolationApp:
         self.ax.set_ylabel("Value")
         self.canvas.draw()
 
-    def copy_to_clipboard(self):
-        if not self.current_values:
+    def copy_to_clipboard(self, graph_state):
+        if not graph_state["plot_points"]:
             messagebox.showinfo("No values", "There are no values to copy. Please submit first.")
             return
-        text = "\n".join(str(v) for v in self.current_values)
+        text = " ".join(str(v) for v in graph_state["plot_points"])
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
         
@@ -150,7 +149,7 @@ class InterpolationApp:
 
     def new_graph(self):
         """Open a new window to plot and edit a separate graph."""
-        self.copy_to_clipboard()
+        self.copy_to_clipboard(self.main_graph_state)  # Copy current values for easy pasting into new graph
 
         new_window = tk.Toplevel(self.root)
         self.child_windows.append(new_window) # Clean close
@@ -237,7 +236,7 @@ class InterpolationApp:
         )
 
         ttk.Button(control_frame, text="Plot Data", command=plot_data).pack(side="left", padx=(0, 5))
-        ttk.Button(control_frame, text="Copy Values", command=self.copy_to_clipboard).pack(side="left", padx=(0, 5))
+        ttk.Button(control_frame, text="Copy Values", command=lambda: self.copy_to_clipboard(graph_state)).pack(side="left", padx=(0, 5))
         ttk.Button(
             control_frame,
             text="Save Graph",
@@ -314,6 +313,8 @@ class InterpolationApp:
                 messagebox.showerror("Invalid input", "Please enter a numeric value.")
 
         ttk.Button(dialog, text="Save", command=save).pack(pady=5)
+
+    
 
     def submit(self):
         try:
