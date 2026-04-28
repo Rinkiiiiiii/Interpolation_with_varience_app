@@ -5,7 +5,6 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
-import importlib
 import ValueGenerator
 from tkinter.filedialog import asksaveasfilename
 import openpyxl
@@ -300,7 +299,7 @@ class InterpolationApp:
                 if "text_widget" in graph_state and graph_state["text_widget"] is not None:
                     text_widget = graph_state["text_widget"]
                     text_widget.delete("1.0", tk.END)
-                    text_widget.insert("1.0", "\n".join(str(v) for v in graph_state["plot_points"]))
+                    text_widget.insert("1.0", " ".join(str(v) for v in graph_state["plot_points"]))
 
                 self.render_plot(
                     graph_state["ax"],
@@ -312,9 +311,7 @@ class InterpolationApp:
             except ValueError:
                 messagebox.showerror("Invalid input", "Please enter a numeric value.")
 
-        ttk.Button(dialog, text="Save", command=save).pack(pady=5)
-
-    
+        ttk.Button(dialog, text="Save", command=save).pack(pady=5)   
 
     def submit(self):
         try:
