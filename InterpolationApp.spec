@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['MainFunctionality\\App.py'],
+    ['InterpolationAppMainFunctionality\\App.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['MainFunctionality\\newicon.ico'],
+    icon=['InterpolationAppMainFunctionality\\newicon.ico'],
 )

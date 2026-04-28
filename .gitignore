@@ -1,2 +1,21 @@
-progress_report.txt
+Interpolation_App_progress_report.txt
 notes_for_app_creation.txt
+
+ClientInformation/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build artifacts
+build/
+dist/
+
+# PyInstaller generated files
+*.spec
+
+# Virtual environment
+.venv/
+venv/
+env/
